@@ -19,6 +19,20 @@ Home = React.createClass
       </div>
     </div>
 
+ListCharacter = React.createClass
+  render: -> 
+   <li>id: {@props.character_id}</li>
+
+List = React.createClass
+  getInitialState: ->
+    characters: characters
+  renderCharacters: -> 
+    <ListCharacter character_id={character_id} /> for character_id in @state.characters 
+  render: -> 
+    <ul>
+      {@renderCharacters()}
+    </ul>
+
 About = React.createClass
   render: ->
     <div className="column">
@@ -40,8 +54,11 @@ routes =
   <Route path="/" handler={Main}>
     <DefaultRoute name="home" handler={Home}/>
     <Route name="about" handler={About}/>
+    <Route name="list" handler={List}/>
   </Route>
 
 $ ->
   Router.run routes, Router.HashLocation, (Handler) ->
     React.render(<Handler/>, document.body)
+
+characters = [123,456]

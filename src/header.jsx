@@ -9,11 +9,14 @@ export default React.createClass({
       <div className="ui page grid">
         <div className="column" style={{"padding-bottom": 0}}>
           <div className="title item">
-            <b>Application Name</b>
+            <b>California Gurls</b>
           </div>
           <Link className="item" to="home">
             Home
           </Link>
+	  <Link className="item" to="list">
+	    List
+	  </Link>
           <Link className="item" to="about">
             About
           </Link>
