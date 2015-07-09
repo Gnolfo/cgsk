@@ -9,7 +9,7 @@ Header = require('./header')
 Home = React.createClass
   render: ->
     <div className="column">
-      <div classNakme="ui segment">
+      <div className="ui segment">
         <h1 className="ui header">
           <span>Get to work!</span>
           <div className="sub header">
@@ -21,7 +21,24 @@ Home = React.createClass
 
 ListCharacter = React.createClass
   render: -> 
-   <li>id: {@props.character_id}</li>
+    <a class="item">
+      <div class="ui red horizontal label">Fruit</div>
+      {@props.character_id}
+      </a>
+
+Fake = React.createClass
+  getInitialState: ->
+    characters: characters
+  renderCharacters: -> 
+    <ListCharacter character_id={character_id} /> for character_id in @state.characters 
+  render: -> 
+    <div className="column">
+      <div className="ui segment">
+        <div className="ui cards">
+          {@renderCharacters()}
+        </div>
+      </div>
+    </div>
 
 List = React.createClass
   getInitialState: ->
@@ -29,9 +46,13 @@ List = React.createClass
   renderCharacters: -> 
     <ListCharacter character_id={character_id} /> for character_id in @state.characters 
   render: -> 
-    <ul>
-      {@renderCharacters()}
-    </ul>
+    <div className="column">
+      <div className="ui segment">
+        <div className="ui divided selection list">
+          {@renderCharacters()}
+        </div>
+      </div>
+    </div>
 
 About = React.createClass
   render: ->
@@ -62,3 +83,5 @@ $ ->
     React.render(<Handler/>, document.body)
 
 characters = [123,456]
+
+
