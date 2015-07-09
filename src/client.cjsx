@@ -21,24 +21,11 @@ Home = React.createClass
 
 ListCharacter = React.createClass
   render: -> 
+    character_info = character_data[@props.character_id]
     <a class="item">
-      <div class="ui red horizontal label">Fruit</div>
-      {@props.character_id}
-      </a>
-
-Fake = React.createClass
-  getInitialState: ->
-    characters: characters
-  renderCharacters: -> 
-    <ListCharacter character_id={character_id} /> for character_id in @state.characters 
-  render: -> 
-    <div className="column">
-      <div className="ui segment">
-        <div className="ui cards">
-          {@renderCharacters()}
-        </div>
-      </div>
-    </div>
+      <img className="ui avatar image" src={"/images/class_"+character_info.class+".jpg"} />
+      <span>{character_info.name}</span>
+    </a>
 
 List = React.createClass
   getInitialState: ->
@@ -83,5 +70,13 @@ $ ->
     React.render(<Handler/>, document.body)
 
 characters = [123,456]
+
+character_data = 
+	123: 
+	  name: "Tipps"
+	  class: "druid"
+	456:
+	  name: "Hemmlocke"
+	  class: "rogue"
 
 

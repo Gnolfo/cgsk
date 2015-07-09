@@ -11,6 +11,7 @@ debug = require("debug")("react-express-template")
 require("babel/register")
 
 dist = path.join(__dirname, '/../dist')
+assets = path.join(__dirname, '/../assets')
 app = express()
 # enable if you have a favicon
 # app.use favicon("#{dist}/favicon.ico")
@@ -19,6 +20,7 @@ app.use bodyParser.json()
 app.use bodyParser.urlencoded(extended: true)
 app.use cookieParser()
 app.use express.static(dist)
+app.use express.static(assets)
 
 app.set "port", process.env.PORT or 3000
 
