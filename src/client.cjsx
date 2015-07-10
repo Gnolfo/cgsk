@@ -22,10 +22,14 @@ Home = React.createClass
 ListCharacter = React.createClass
   render: -> 
     character_info = character_data[@props.character_id]
-    <a class="item">
-      <img className="ui avatar image" src={"/images/class_"+character_info.class+".jpg"} />
-      <span>{character_info.name}</span>
-    </a>
+    <div className="item">
+      <div className="image">
+         <img className="ui avatar image" src={"/images/class_"+character_info.class+".jpg"} />
+      </div>
+      <div className="content">
+        <span>{character_info.name}</span>
+      </div>
+    </div>
 
 List = React.createClass
   getInitialState: ->
