@@ -14,9 +14,9 @@ export default React.createClass({
           <Link className="item" to="home">
             Home
           </Link>
-	  <Link className="item" to="list">
-	    List
-	  </Link>
+      	  <Link className="item" to="list">
+      	    List
+      	  </Link>
           <Link className="item" to="about">
             About
           </Link>

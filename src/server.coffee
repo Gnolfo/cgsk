@@ -53,6 +53,11 @@ app.use (err, req, res, next) ->
   res.status err.status or 500
   res.send(message: err.message)
 
+
+app.get '*', (req, res) ->
+  res.render 'index'
+
+
 #
 # HTTPS support
 #

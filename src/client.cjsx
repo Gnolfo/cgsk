@@ -73,7 +73,7 @@ LogItem = React.createClass
         icon: 'remove user'
       boss: 
         el: LogItemBoss
-        icon: 'heart'
+        icon: 'crosshairs'
       loot: 
         el: LogItemLoot
         icon: 'bitcoin'
@@ -106,14 +106,24 @@ List = React.createClass
   render: -> 
     <div className="column">
       <div className="ui segment">
-        <div className="ui left rail">
-          <div className="ui segment">
-            Left Rail Content
-          </div>
-        </div>        
         <div className="ui two column middle aligned very relaxed stackable grid">
           <div className="column">  
+            <div className="ui labeled icon menu">
+              <a className="item" href="/list/1">
+                <i className="gamepad icon"></i>
+                Games
+              </a>
+              <a className="item" href="/list/2">
+                <i className="video camera icon"></i>
+                Channels
+              </a>
+              <a className="item" href="/list/3">
+                <i className="video play icon"></i>
+                Videos
+              </a>
+            </div>
             <div className="ui divided selection list">
+              {@props.id}
               {@renderCharacters()}
             </div>
           </div>
@@ -148,6 +158,7 @@ routes =
     <DefaultRoute name="home" handler={Home}/>
     <Route name="about" handler={About}/>
     <Route name="list" handler={List}/>
+      <Route path="list/:id" handler={List}/>
   </Route>
 
 $ ->
@@ -227,40 +238,4 @@ wowhead_tooltips =
 Placeholder = React.createClass
   render: ->
     <div className="ui middle aligned divided list">
-      <div className="item">
-        <div className="right floated content">
-          <div className="metadata">2 days ago</div>
-        </div>
-        <i className="large bitcoin middle aligned icon"></i>
-        <div className="content">
-          Lena
-        </div>
-      </div>
-      <div className="item">
-        <div className="right floated content">
-          <div className="metadata">2 days ago</div>
-        </div>
-        <i className="large bitcoin middle aligned icon"></i>
-        <div className="content">
-          Lindsay
-        </div>
-      </div>
-      <div className="item">
-        <div className="right floated content">
-          <div className="metadata">2 days ago</div>
-        </div>
-        <i className="large bitcoin middle aligned icon"></i>
-        <div className="content">
-          Mark
-        </div>
-      </div>
-      <div className="item">
-        <div className="right floated content">
-          <div className="metadata">2 days ago</div>
-        </div>
-        <i className="large bitcoin middle aligned icon"></i>
-        <div className="content">
-          Molly
-        </div>
-      </div>
     </div>
