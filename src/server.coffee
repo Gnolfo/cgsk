@@ -7,6 +7,7 @@ path = require("path")
 logger = require("morgan")
 cookieParser = require("cookie-parser")
 bodyParser = require("body-parser")
+mysql = require('mysql')
 debug = require("debug")("react-express-template")
 require("babel/register")
 
@@ -21,6 +22,8 @@ app.use bodyParser.urlencoded(extended: true)
 app.use cookieParser()
 app.use express.static(dist)
 app.use express.static(assets)
+#app.use express.json()      
+#app.use express.urlencoded()
 
 app.set "port", process.env.PORT or 3000
 
@@ -31,6 +34,46 @@ app.set "port", process.env.PORT or 3000
 #   res.header("Access-Control-Allow-Origin", "*")
 #   res.header("Access-Control-Allow-Headers", "X-Requested-With")
 #   next()
+
+dbConnection = mysql.createConnection(host: process.env["DATABASE_HOST"], user: process.env["DATABASE_USER"], password: process.env["DATABASE_PASS"], database: process.env["DATABASE_DB"])
+dbConnected = false
+
+dbQuery = (query, cb) ->
+  unless dbConnected
+    dbConnection.connect()
+    dbConnected=true 
+  dbConnection.query query, (err,rows) ->
+    cb rows
+
+app.post '/loot', (req,res) ->
+  list_id = req.body.list_id
+  character_id = req.body.character_id
+  item_id = req.body.item_id
+  res.send(message: {list_id: list_id, character_id:character_id, item_id: item_id})
+
+app.post '/start', (req,res) ->
+  5
+
+app.post '/end', (req,res) ->
+  5 
+
+app.post '/boss', (req,res) ->
+  5
+
+app.post '/add', (req,res) ->
+  5
+
+app.post '/rem', (req,res) ->
+  5
+
+
+app.get '/db', (req,res) ->
+  dbQuery "SELECT * FROM characters", (rows) -> 
+    res.send(message: rows) 
+
+app.get '/', (req, res) ->
+  res.render 'index'
+
 
 ## catch 404 and forwarding to error handler
 app.use (req, res, next) ->
@@ -52,10 +95,6 @@ if app.get("env") is "development"
 app.use (err, req, res, next) ->
   res.status err.status or 500
   res.send(message: err.message)
-
-
-app.get '*', (req, res) ->
-  res.render 'index'
 
 
 #

@@ -12,20 +12,14 @@ export default React.createClass({
             <b>California Gurls</b>
           </div>
           <Link className="item" to="home">
-            Home
+            Raid
           </Link>
       	  <Link className="item" to="list">
-      	    List
+      	    Lists
       	  </Link>
           <Link className="item" to="about">
-            About
+            Manage
           </Link>
-          <div className="right floated item">
-            <i className="setting icon"/>
-          </div>
-          <div className="right floated item">
-            <div className="ui teal button">Sign Up</div>
-          </div>
           <div className="right floated item">
             <div className="ui button">Log in</div>
           </div>

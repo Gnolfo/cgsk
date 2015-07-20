@@ -29,6 +29,7 @@
     "gulp-webpack": "^1.4.0",
     "jquery": "^2.1.4",
     "morgan": "^1.5.3",
+    "mysql": "~2.8.0",
     "react": "^0.13.3",
     "react-router": "^0.13.3",
     "rimraf": "^2.3.3",
