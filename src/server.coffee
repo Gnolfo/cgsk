@@ -8,6 +8,11 @@ logger = require("morgan")
 cookieParser = require("cookie-parser")
 bodyParser = require("body-parser")
 mysql = require('mysql')
+Q = require('Q')
+hbs = require('hbs')
+json = require('hbs-json')
+express = require('express')
+exphbs  = require('express-handlebars')
 debug = require("debug")("react-express-template")
 require("babel/register")
 
@@ -21,11 +26,16 @@ app.use bodyParser.json()
 app.use bodyParser.urlencoded(extended: true)
 app.use cookieParser()
 app.use express.static(dist)
-app.use express.static(assets)
-#app.use express.json()      
-#app.use express.urlencoded()
+app.use express.static(assets) 
 
 app.set "port", process.env.PORT or 3000
+
+app.engine 'handlebars', exphbs()
+app.set 'view engine', 'handlebars'
+app.set 'views', __dirname
+
+hbs.registerHelper 'json', json
+
 
 #
 # CORS support
@@ -42,8 +52,23 @@ dbQuery = (query, cb) ->
   unless dbConnected
     dbConnection.connect()
     dbConnected=true 
-  dbConnection.query query, (err,rows) ->
-    cb rows
+  dbConnection.query query, (err, results) ->
+    cb(err, results)
+
+dbGetCharacters = () ->
+  deferred = Q.defer()
+  dbQuery "SELECT * FROM characters", deferred.makeNodeResolver()
+  deferred.promise
+
+dbGetLists = () ->
+  deferred = Q.defer()
+  dbQuery "SELECT * FROM lists", deferred.makeNodeResolver()
+  deferred.promise
+
+dbGetLogs = () ->
+  deferred = Q.defer()
+  dbQuery "SELECT * FROM logs order by timestamp desc", deferred.makeNodeResolver()
+  deferred.promise
 
 app.post '/loot', (req,res) ->
   list_id = req.body.list_id
@@ -66,14 +91,19 @@ app.post '/add', (req,res) ->
 app.post '/rem', (req,res) ->
   5
 
-
-app.get '/db', (req,res) ->
-  dbQuery "SELECT * FROM characters", (rows) -> 
-    res.send(message: rows) 
-
 app.get '/', (req, res) ->
-  res.render 'index'
-
+  Q.all [dbGetCharacters(), dbGetLists(), dbGetLogs()]
+    .spread (characters, lists, logs) -> 
+      characters = characters.reduce (pv, cv) ->
+        pv[cv.id] = cv
+        pv
+      , {}
+      lists = lists.reduce (pv, cv) ->
+        pv[cv.list_id] = {} unless typeof pv[cv.list_id] is 'object'
+        pv[cv.list_id][cv.position] = cv
+        pv
+      , {}
+      res.render 'index.hbs', (characters:characters, lists: lists, logs: logs)
 
 ## catch 404 and forwarding to error handler
 app.use (req, res, next) ->

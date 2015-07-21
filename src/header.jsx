@@ -14,7 +14,7 @@ export default React.createClass({
           <Link className="item" to="home">
             Raid
           </Link>
-      	  <Link className="item" to="list">
+      	  <Link className="item" to="list" params={{ list_id:1 }}>
       	    Lists
       	  </Link>
           <Link className="item" to="about">
