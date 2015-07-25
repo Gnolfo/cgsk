@@ -103,6 +103,7 @@ List = React.createClass
   getInitialState: ->
     characters: characters
   componentDidMount: -> 
+    # This is to tell the wowhead widget to re-linkify everything, otherwise it breaks whenever a component re-mounts
     $WowheadPower.refreshLinks() if typeof $WH.isset is "function"
   renderCharacters: (list_id) -> 
     list = lists[list_id]

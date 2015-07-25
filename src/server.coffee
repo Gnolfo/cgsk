@@ -9,6 +9,8 @@ cookieParser = require("cookie-parser")
 bodyParser = require("body-parser")
 mysql = require('mysql')
 Q = require('Q')
+SHA256 = require("crypto-js/sha256")
+session = require("client-sessions")
 hbs = require('hbs')
 json = require('hbs-json')
 express = require('express')
@@ -27,6 +29,11 @@ app.use bodyParser.urlencoded(extended: true)
 app.use cookieParser()
 app.use express.static(dist)
 app.use express.static(assets) 
+
+
+# 150 day expiration
+app.use session( cookieName: "session", secret: process.env.SESSION_SALT, duration: 150 * 24 * 60 * 60 * 1000)
+
 
 app.set "port", process.env.PORT or 3000
 
@@ -70,7 +77,40 @@ dbGetLogs = () ->
   dbQuery "SELECT * FROM logs order by timestamp desc", deferred.makeNodeResolver()
   deferred.promise
 
-app.post '/loot', (req,res) ->
+dbAuthUser = (username, password) ->
+  deferred = Q.defer()
+  dbQuery "SELECT * FROM users where username = "+dbConnection.escape(username)+" and password="+dbConnection.escape(password), deferred.makeNodeResolver()
+  deferred.promise    
+
+dbCheckUser = (id) ->
+  dbQuery "SELECT * FROM users where id = "+dbConnection.escape(id), (err,result) ->
+    result.id == id
+   
+# app.use (req,res,next) ->
+# user_id = req.session?.user?.id
+#  req.user = req.session.user if user_id? and dbCheckUser user_id
+#  next()
+
+authRequired = (req,res,next)  ->
+  if req.session?.user?
+    next()
+  else
+    res.send(error: 'auth')
+
+app.post '/login', (req,res) ->
+  username = req.body.username
+  password = SHA256 req.body.password
+  dbAuthUser username, password.toString()
+    .then (users) ->
+      success = users.length > 0
+      if success
+        cookie_user = users.shift()
+        delete cookie_user.password
+        req.session = user:cookie_user        
+        res.locals = user:cookie_user
+      res.send(success: success)
+
+app.post '/loot', authRequired, (req,res) ->
   list_id = req.body.list_id
   character_id = req.body.character_id
   item_id = req.body.item_id
