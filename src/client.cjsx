@@ -60,23 +60,6 @@ Login = React.createClass
       </div>
     </div>
 
-oldCard = ->
-  <div className="card">
-    <div className="blurring dimmable image">
-      <div className="ui dimmer">
-        <div className="content">
-          <div className="center">
-            <div className="ui inverted button">Downed</div>
-          </div>
-        </div>
-      </div>
-      <img src={@props.avatar_url} />
-    </div>
-    <div className="content">
-      <a className="header">{@props.name}</a>
-    </div>
-  </div>
-
 RaidBossList = React.createClass
   renderBosses: ->
     ordered_bosses = []
@@ -88,6 +71,28 @@ RaidBossList = React.createClass
     <div className="ui big divided list">
       {@renderBosses()}
     </div>   
+
+BossItemSelection = React.createClass
+  render: ->
+    5
+
+LootItem = React.createClass
+  render: ->
+    <div className="active title">
+      <i className="dropdown icon"></i>
+      <a href="#" rel={"item-"+@props.data.item_id} />
+    </div>
+    <div className="active content">
+      <p>Selected Person Goes Here</p>
+    </div>
+
+LootAssignment = React.createClass
+  renderLootItems: -> 
+    <LootItem item_id={data.item_id} list_id={data.list_id} /> for data in @props.items
+  render: ->
+    <div className="ui styled accordion">
+      {@renderLootItems}
+    </div>
 
 
 Home = React.createClass
