@@ -48,13 +48,54 @@ Login = React.createClass
       </div>
     </div>
 
+ RaidBossCard = React.createClass
+  render: ->
+    <div className="item">
+      <div className="right floated content">
+        <div className="ui button">Downed</div>
+      </div> 
+      <img className="ui tiny image" src={@props.avatar_url} />
+      <div className="content">
+        {@props.name}
+      </div>
+    </div>
+
+oldCard = ->
+  <div className="card">
+    <div className="blurring dimmable image">
+      <div className="ui dimmer">
+        <div className="content">
+          <div className="center">
+            <div className="ui inverted button">Downed</div>
+          </div>
+        </div>
+      </div>
+      <img src={@props.avatar_url} />
+    </div>
+    <div className="content">
+      <a className="header">{@props.name}</a>
+    </div>
+  </div>
+
+RaidBossList = React.createClass
+  renderBosses: ->
+    ordered_bosses = []
+    ordered_bosses.push boss_data for boss_id, boss_data of raid_data
+    ordered_bosses.sort (a,b) ->
+      a.position - b.position
+    <RaidBossCard id={boss_id} name={$("<div/>").html(boss_data.name).text()} avatar_url={boss_data.avatar_url} /> for boss_data in ordered_bosses
+  render: ->
+    <div className="ui big divided list">
+      {@renderBosses()}
+    </div>   
+
 
 Home = React.createClass
   render: ->
     <div className="column">
       <div className="ui segment">
         <h1 className="ui header">
-          <RaidEmpty/>
+          <RaidBossList/>
         </h1>
       </div>
     </div>

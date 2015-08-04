@@ -52,15 +52,13 @@ hbs.registerHelper 'json', json
 #   res.header("Access-Control-Allow-Headers", "X-Requested-With")
 #   next()
 
-dbConnection = mysql.createConnection(host: process.env["DATABASE_HOST"], user: process.env["DATABASE_USER"], password: process.env["DATABASE_PASS"], database: process.env["DATABASE_DB"])
-dbConnected = false
+pool = mysql.createPool(host: process.env["DATABASE_HOST"], user: process.env["DATABASE_USER"], password: process.env["DATABASE_PASS"], database: process.env["DATABASE_DB"])
 
 dbQuery = (query, cb) ->
-  unless dbConnected
-    dbConnection.connect()
-    dbConnected=true 
-  dbConnection.query query, (err, results) ->
-    cb(err, results)
+  pool.getConnection (err, conn) ->
+    conn.query query, (err, results) ->
+      cb err, results
+      conn.release()
 
 dbGetCharacters = () ->
   deferred = Q.defer()
@@ -74,17 +72,31 @@ dbGetLists = () ->
 
 dbGetLogs = () ->
   deferred = Q.defer()
-  dbQuery "SELECT * FROM logs order by timestamp desc", deferred.makeNodeResolver()
+  dbQuery "SELECT * FROM logs order by timestamp desc", deferred.makeNodeResolver() 
   deferred.promise
 
+dbGetBosses = ->
+  deferred = Q.defer()
+  dbQuery "SELECT * FROM bosses", deferred.makeNodeResolver()
+  deferred.promise
+
+dbGetRaidData = ->
+  deferred = Q.defer()
+  dbQuery "SELECT b.id, b.name, b.position, b.avatar_url, i.item_id, i.list_id FROM bosses b JOIN items i on i.boss_id=b.id", deferred.makeNodeResolver()
+  deferred.promise
+
+# 
+# Auth Queries
+#
 dbAuthUser = (username, password) ->
   deferred = Q.defer()
-  dbQuery "SELECT * FROM users where username = "+dbConnection.escape(username)+" and password="+dbConnection.escape(password), deferred.makeNodeResolver()
+  dbQuery "SELECT * FROM users where username = "+mysql.escape(username)+" and password="+mysql.db(password), deferred.makeNodeResolver()
   deferred.promise    
 
 dbCheckUser = (id) ->
-  dbQuery "SELECT * FROM users where id = "+dbConnection.escape(id), (err,result) ->
-    result.id == id
+  deferred = Q.defer()
+  dbQuery "SELECT * FROM users where id = "+mysql.escape(id),  deferred.makeNodeResolver()
+  deferred.promise    
    
 # app.use (req,res,next) ->
 # user_id = req.session?.user?.id
@@ -132,8 +144,8 @@ app.post '/rem', (req,res) ->
   5
 
 app.get '/', (req, res) ->
-  Q.all [dbGetCharacters(), dbGetLists(), dbGetLogs()]
-    .spread (characters, lists, logs) -> 
+  Q.all [dbGetCharacters(), dbGetLists(), dbGetLogs(), dbGetRaidData()]
+    .spread (characters, lists, logs, raid_data) -> 
       characters = characters.reduce (pv, cv) ->
         pv[cv.id] = cv
         pv
@@ -143,7 +155,12 @@ app.get '/', (req, res) ->
         pv[cv.list_id][cv.position] = cv
         pv
       , {}
-      res.render 'index.hbs', (characters:characters, lists: lists, logs: logs)
+      raid_data = raid_data.reduce (pv,cv) ->
+        pv[cv.id] = (id: cv.id, name: cv.name, avatar_url: cv.avatar_url, items:[], position:cv.position) unless pv[cv.id]?
+        pv[cv.id].items.push(item_id: cv.item_id, list_id: cv.list_id)
+        pv
+      ,{}
+      res.render 'index.hbs', (characters:characters, lists: lists, logs: logs, raid_data: raid_data)
 
 ## catch 404 and forwarding to error handler
 app.use (req, res, next) ->
