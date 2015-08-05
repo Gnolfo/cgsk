@@ -8,6 +8,7 @@ less = require 'gulp-less'
 postcss = require 'gulp-postcss'
 autoprefixer = require 'autoprefixer-core'
 rimraf = require 'rimraf'
+env = require 'gulp-env'
 GLOBAL.Promise = (require 'es6-promise').Promise # to make gulp-postcss happy
 
 src_path = "src"
@@ -83,14 +84,17 @@ gulp.task 'server', ->
     script: server_main
     watch: [server_main]
     execMap:
-      coffee: "#{modules_path}/.bin/coffee"
+      coffee: "#{modules_path}\\.bin\\coffee"
     env:
       PORT: process.env.PORT or 3000
 
-gulp.task 'default', ['clean', 'copy', 'css', 'server', 'js-dev', 'watch']
+gulp.task 'default', ['set-env', 'clean', 'copy', 'css', 'server', 'js-dev', 'watch']
 
 gulp.task 'watch', ['copy'], ->
   livereload.listen()
   gulp.watch(["#{dist_path}/**/*"]).on('change', livereload.changed)
   gulp.watch ["#{src_path}/**/*.less"], ['css']
   gulp.watch ["#{src_path}/**/*.html"], ['copy']
+
+gulp.task 'set-env', ->
+  env file: ".env.json",

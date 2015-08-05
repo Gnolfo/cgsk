@@ -11,23 +11,30 @@ RaidEmpty = React.createClass
     Object.keys(characters).map (v) -> id: characters[v].id
   render: ->
     <div>
-      <CharacterList characters={@charactersFromGlobal()} />
+      <CharacterList characters={@charactersFromGlobal()} clickable=true />
       <button className="ui button">Start a new Raid</button>
     </div>
 
 CharacterList = React.createClass
+  getDefaultProps: ->
+    clickable: false
   renderCharacters: (character_list) -> 
-    <ListCharacter character_id={character.id} /> for character in character_list 
+    <ListCharacter character_id={character.id} clickable={@props.clickable} /> for character in character_list 
   render: ->
     <div className="ui divided selection list">
       {@renderCharacters @props.characters}
     </div>
 
-
 ListCharacter = React.createClass
+  getInitialState: ->
+    active: false,
+  handleClick: (event) ->
+    @setState active:!@state.active if @props.clickable
   render: -> 
     character_info = characters[@props.character_id]
-    <div className="item">
+    classes = ['item', 'class', 'class-'+character_info.class]
+    classes.push 'active' if @state.active
+    <div className={classes.join ' '} onClick={@handleClick}>
       <div className="image">
         <img className="ui avatar image" src={"/images/class_"+character_info.class+".jpg"} />
       </div>
@@ -126,7 +133,7 @@ BossLootItem = React.createClass
   decCount: ->  
     @props.updateLootList(@props.item.item_id, false)
   render: ->
-    <div className="ui fluid card">
+    <div className="ui card">
       <div className="content">
         <div className="header">
           <a href="#" rel={"item-"+@props.item.item_id} />
@@ -162,6 +169,8 @@ BossLootList = React.createClass
 BossItemSelection = React.createClass
   getInitialState: ->
     loot_list: []
+  resetLootList: ->
+    @setState loot_list:[]
   updateLootList: (item_id, inc) ->
     list = @state.loot_list
     new_item = true
@@ -179,13 +188,12 @@ BossItemSelection = React.createClass
     console.log list
   componentDidUpdate: ->
     $WowheadPower.refreshLinks() if typeof $WH.isset is "function"
-    $('#bossModal div.content div.description div.cards div.card div.content div.header a').css('font-size','12px')
   renderItems: ->
     <BossLootItem item={item} updateLootList={@updateLootList} /> for item in raid_data[@props.boss_id].items if @props.boss_id != false
   render: ->
     boss_data = name: 'None', 'avatar_url': '#'
     boss_data = raid_data[@props.boss_id] if @props.boss_id != false
-    <div className="ui modal" id="bossModal">
+    <div className="ui fullscreen modal" id="bossModal">
       <i className="close icon"></i>
       <div className="header">
         <div className="ui medium image">
@@ -196,21 +204,23 @@ BossItemSelection = React.createClass
       <div className="image content">
         <div className="description">
           <div className="ui header">Select what dropped</div>
-            <div className="ui four cards">
-              {@renderItems()}
-            </div>   
-          </div>
+          <div className="ui doubling cards">
+            {@renderItems()}
+          </div>   
         </div>
+      </div>
       <h4 className="ui horizontal divider header">
         Final Loot
       </h4>
-      <BossLootList loot_list={@state.loot_list} />
+      <div className="content">
+        <BossLootList loot_list={@state.loot_list} />
+      </div>
       <div className="actions">
         <div className="ui black deny button">
           Nope
         </div>
         <div className="ui positive right labeled icon button">
-          Yep, that's' what dropped
+          Yep, that's what dropped
           <i className="checkmark icon"></i>
         </div>
       </div>

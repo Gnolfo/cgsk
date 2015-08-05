@@ -12,6 +12,28 @@
 @color-class-warlock: #9482C9;
 @color-class-warrior: #C79C6E;
 
+@class-colors: deathknight  #C41F3B, druid  #FF7D0A, hunter  #ABD473, mage  #69CCF0, monk  #00FF96, paladin  #F58CBA, priest  #FFFFFF, rogue  #FFF569, shaman  #0070DE, warlock  #9482C9, warrior  #C79C6E;
+
+.buildActiveClassList(@iterator:1) when(@iterator <= length(@class-colors)) {
+    @class: extract(extract(@class-colors, @iterator),1);
+    .ui.selection.list > .item.active.class.class-@{class} {
+        background-color: extract(extract(@class-colors, @iterator),2);
+    }
+    .buildActiveClassList((@iterator + 1));
+}
+.buildActiveClassList();
+ 
+ .ui.selection.list > .item.class {
+ 	text-color: black;
+ 	background-color: #9F9F9F;
+ }
+
+ .ui.selection.list > .item.class:hover {
+ 	background-color: #D5D5D5;
+ }
+ 
+ 
 div.raid-log span {
 	font-size: .9em;
-}
+} 
+ 
