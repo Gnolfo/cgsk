@@ -7,33 +7,41 @@ Header = require('./header')
 {Route, RouteHandler, DefaultRoute, Link, Redirect} = Router
 
 RaidEmpty = React.createClass
-  charactersFromGlobal: ->
-    Object.keys(characters).map (v) -> id: characters[v].id
+  getInitialState: ->
+    clist = Object.keys(characters).map (v) -> 
+      id: characters[v].id, active: false
+    character_list: clist
+  startRaid: ->
+    @props.raidStarted (@state.character_list.filter (v) -> v.active) if confirm 'Are you sure you want to start a new raid?'
+  characterToggled: (character_id, active) ->
+    character_list = @state.character_list.map (v) ->
+      v.active = active if v.id == character_id
+      v
+    @setState character_list: character_list
   render: ->
     <div>
-      <CharacterList characters={@charactersFromGlobal()} clickable=true />
-      <button className="ui button">Start a new Raid</button>
+      <CharacterList id="raid-roster" characters={@state.character_list} clickable=true characterToggled={@characterToggled}/>
+      <button className="ui button" onClick={@startRaid}>Start a new Raid</button>
     </div>
 
 CharacterList = React.createClass
   getDefaultProps: ->
     clickable: false
   renderCharacters: (character_list) -> 
-    <ListCharacter character_id={character.id} clickable={@props.clickable} /> for character in character_list 
+    <ListCharacter character_id={character.id} clickable={@props.clickable}
+      characterToggled={@props.characterToggled} active={character.active} /> for character in character_list 
   render: ->
     <div className="ui divided selection list">
       {@renderCharacters @props.characters}
     </div>
 
 ListCharacter = React.createClass
-  getInitialState: ->
-    active: false,
   handleClick: (event) ->
-    @setState active:!@state.active if @props.clickable
+    @props.characterToggled @props.character_id, !@props.active
   render: -> 
     character_info = characters[@props.character_id]
     classes = ['item', 'class', 'class-'+character_info.class]
-    classes.push 'active' if @state.active
+    classes.push 'active' if @props.active
     <div className={classes.join ' '} onClick={@handleClick}>
       <div className="image">
         <img className="ui avatar image" src={"/images/class_"+character_info.class+".jpg"} />
@@ -72,14 +80,42 @@ RaidDashboard = React.createClass
   charactersFromGlobal: ->
     Object.keys(characters).map (v) -> id: characters[v].id
   getInitialState: ->
+    raid_id: null,
     active_characters: [],
-    boss_id: false
+    boss_id: false,
+    loot_list: [],
+    looting: false
+  raidStarted: (character_list) ->
+    65
   bossSelected: (boss_id) ->
     $('#bossModal').modal 'show'
-    @setState boss_id: boss_id 
+    @setState boss_id: boss_id, loot_list: [] 
+  updateLootList: (item, inc) ->
+    list = @state.loot_list
+    new_item = true
+    list = list.reduce (p,c) ->
+      if c.item.item_id == item.item_id
+        new_item = false
+        c.count += if inc then 1 else -1
+        p.push c if c.count > 0
+      else
+        p.push c
+      p
+    , []
+    list.push (item: item, count:1) if new_item and inc
+    @setState loot_list: list    
+  getRightCol: ->
+    if @state.loot_list.length > 0 and @state.looting
+      <LootAssignment items={@state.loot_list} />
+    else
+      <RaidMenu bossSelected={@bossSelected} loot_list={@state.loot_list} />
+  commitLoot: ->
+    @setState looting: true
+  finishedLooting: ->
+    @setState looting: false
   render: ->
     <div className="column">
-      <BossItemSelection boss_id={@state.boss_id} />
+      <BossItemSelection boss_id={@state.boss_id} loot_list={@state.loot_list} updateLootList={@updateLootList} commitLoot={@commitLoot} />
       <div className="ui segment">
         <div className="ui two column middle aligned very relaxed stackable grid">
           <div className="column" style={verticalAlign:"top"}> 
@@ -88,19 +124,41 @@ RaidDashboard = React.createClass
           <div className="ui vertical divider">
           </div>
           <div className="center aligned column">
-             <RaidMenu bossSelected={@bossSelected} />
+             {@getRightCol()}
           </div>
         </div>    
       </div>
     </div>
 
 RaidMenu = React.createClass
+  componentDidMount: ->
+    $('.ui.accordion').accordion()
   render: ->
-    <div>
-      <RaidBossList bossSelected={@props.bossSelected} />
+    <div className="ui styled accordion">
+      <div className="title">
+        <i className="dropdown icon"></i>
+        Boss Selection
+      </div>
+      <div className="content">
+        <RaidBossList bossSelected={@props.bossSelected} loot_list={@props.loot_list} />
+      </div>
+      <div className="title">
+        <i className="dropdown icon"></i>
+        Add/Remove
+      </div>
+      <div className="content">
+        <RaidBossList bossSelected={@props.bossSelected} loot_list={@props.loot_list} />
+      </div>
+      <div className="title">
+        <i className="dropdown icon"></i>
+        Finish Raid
+      </div>
+      <div className="content">
+        <RaidBossList bossSelected={@props.bossSelected} loot_list={@props.loot_list} />
+      </div>
     </div>
 
- RaidBossCard = React.createClass
+RaidBossCard = React.createClass
   handleClick: ->
     @props.bossSelected(@props.id)
   render: ->
@@ -108,7 +166,7 @@ RaidMenu = React.createClass
       <div className="right floated content">
         <div className="ui button" onClick={@handleClick}>Downed</div>
       </div> 
-      <img className="floated left ui tiny image" src={@props.avatar_url} />
+      <img className="left floated ui tiny image" src={@props.avatar_url} />
       <div className="content">
         {@props.name}
       </div>
@@ -129,9 +187,9 @@ RaidBossList = React.createClass
 
 BossLootItem = React.createClass
   incCount: ->
-    @props.updateLootList(@props.item.item_id, true)
+    @props.updateLootList(@props.item, true)
   decCount: ->  
-    @props.updateLootList(@props.item.item_id, false)
+    @props.updateLootList(@props.item, false)
   render: ->
     <div className="ui card">
       <div className="content">
@@ -153,13 +211,13 @@ BossLootListItem = React.createClass
       <div className="content">
         <div className="header">{@props.count + "x "}</div>
       </div>
-      <a href="#" rel={"item-"+@props.item_id} />
+      <a href="#" rel={"item-"+@props.item.item_id} />
     </div>  
 
 
 BossLootList = React.createClass
   renderListItems: ->
-    <BossLootListItem count={item.count} item_id={item.item_id} /> for item in @props.loot_list
+    <BossLootListItem count={item_data.count} item={item_data.item} /> for item_data in @props.loot_list
   render: ->
     <div className="ui horizontal list">
       {@renderListItems()}      
@@ -167,29 +225,10 @@ BossLootList = React.createClass
  
 
 BossItemSelection = React.createClass
-  getInitialState: ->
-    loot_list: []
-  resetLootList: ->
-    @setState loot_list:[]
-  updateLootList: (item_id, inc) ->
-    list = @state.loot_list
-    new_item = true
-    list = list.reduce (p,c) ->
-      if c.item_id == item_id
-        new_item = false
-        c.count += if inc then 1 else -1
-        p.push c if c.count > 0
-      else
-        p.push c
-      p
-    , []
-    list.push (item_id: item_id, count:1) if new_item and inc
-    @setState loot_list: list
-    console.log list
   componentDidUpdate: ->
     $WowheadPower.refreshLinks() if typeof $WH.isset is "function"
   renderItems: ->
-    <BossLootItem item={item} updateLootList={@updateLootList} /> for item in raid_data[@props.boss_id].items if @props.boss_id != false
+    <BossLootItem item={item} updateLootList={@props.updateLootList} /> for item in raid_data[@props.boss_id].items if @props.boss_id != false
   render: ->
     boss_data = name: 'None', 'avatar_url': '#'
     boss_data = raid_data[@props.boss_id] if @props.boss_id != false
@@ -213,13 +252,13 @@ BossItemSelection = React.createClass
         Final Loot
       </h4>
       <div className="content">
-        <BossLootList loot_list={@state.loot_list} />
+        <BossLootList loot_list={@props.loot_list} />
       </div>
       <div className="actions">
         <div className="ui black deny button">
           Nope
         </div>
-        <div className="ui positive right labeled icon button">
+        <div className="ui positive right labeled icon button" onClick={@props.commitLoot}>
           Yep, that's what dropped
           <i className="checkmark icon"></i>
         </div>
@@ -239,33 +278,43 @@ BossItemSelection = React.createClass
 
 LootItem = React.createClass
   render: ->
-    <div className="active title">
-      <i className="dropdown icon"></i>
-      <a href="#" rel={"item-"+@props.data.item_id} />
-    </div>
-    <div className="active content">
-      <p>Selected Person Goes Here</p>
+    <div>
+      <div className="title">
+        <i className="dropdown icon"></i>
+        <a href="#" rel={"item-"+@props.item_id} />
+      </div>
+      <div className="content">
+        <p>Selected Person Goes Here</p>
+      </div>
     </div>
 
 LootAssignment = React.createClass
+  componentDidMount: ->
+    $('.ui.accordion').accordion()
   renderLootItems: -> 
-    <LootItem item_id={data.item_id} list_id={data.list_id} /> for data in @props.items
+    <LootItem item_id={data.item.item_id} list_id={data.item.list_id} /> for n in [1..data.count] for data in @props.items
   render: ->
     <div className="ui styled accordion">
-      {@renderLootItems}
+      {@renderLootItems()}
     </div>
 
-
 Home = React.createClass
+  getInitialState: ->
+    raid_id: raid_id,
+    active_characters: []
+  raidStarted: (character_list) ->
+    # ajax to get raid_id
+    @setState raid_id: raid_id, active_characters: character_list
+  getRaidPanel: ->
+    if raid_id isnt false then <RaidDashboard raid_id={raid_id} character_list={@state.active_characters} /> else <RaidEmpty raidStarted={@raidStarted}/>
   render: ->
     <div className="column">
       <div className="ui segment">
         <h1 className="ui header">
-          <RaidDashboard/>
+          {@getRaidPanel()}
         </h1>
       </div>
     </div>
-
 
 LogItemLoot = React.createClass
   render: -> 

@@ -94,7 +94,7 @@ dbGetRaidData = ->
 #
 dbAuthUser = (username, password) ->
   deferred = Q.defer()
-  dbQuery "SELECT * FROM users where username = "+mysql.escape(username)+" and password="+mysql.db(password), deferred.makeNodeResolver()
+  dbQuery "SELECT * FROM users where username = "+mysql.escape(username)+" and password="+mysql.escape(password), deferred.makeNodeResolver()
   deferred.promise    
 
 dbCheckUser = (id) ->
@@ -102,6 +102,14 @@ dbCheckUser = (id) ->
   dbQuery "SELECT * FROM users where id = "+mysql.escape(id),  deferred.makeNodeResolver()
   deferred.promise    
    
+# 
+# Raid Queries 
+# 
+dbStartRaid = ->
+  deferred = Q.defer()
+  dbQuery "INSERT INTO raids (time_start) VALUES (now())",  deferred.makeNodeResolver()
+  deferred.promise  
+
 # app.use (req,res,next) ->
 # user_id = req.session?.user?.id
 #  req.user = req.session.user if user_id? and dbCheckUser user_id
@@ -133,7 +141,11 @@ app.post '/loot', authRequired, (req,res) ->
   res.send(message: {list_id: list_id, character_id:character_id, item_id: item_id})
 
 app.post '/start', (req,res) ->
-  5
+  characters = req.body.characters
+  dbStartRaid()
+    .then (results) ->
+
+      res.send(raid_id: results.insertId)
 
 app.post '/end', (req,res) ->
   5 
@@ -164,7 +176,8 @@ app.get '/', (req, res) ->
         pv[cv.id].items.push(item_id: cv.item_id, list_id: cv.list_id)
         pv
       ,{}
-      res.render 'index.hbs', (characters:characters, lists: lists, logs: logs, raid_data: raid_data)
+      raid_id = false
+      res.render 'index.hbs', (characters:characters, lists: lists, logs: logs, raid_data: raid_data, raid_id: raid_id)
 
 ## catch 404 and forwarding to error handler
 app.use (req, res, next) ->

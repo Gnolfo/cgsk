@@ -1,4 +1,4 @@
-// First, for reference, The core scraping tha gets at the items
+// First, for reference, The core scraping that gets at the items
 $('.listview-scroller').find('tbody.clickable tr').find('a.q4').map(function(i,v){return $(v).prop('href')}) 
 
 // And a mapping of item type to list:

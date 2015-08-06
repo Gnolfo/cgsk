@@ -76,6 +76,9 @@ gulp.task 'copy', ->
   gulp.src("#{src_path}/favicon.ico").pipe(gulp.dest(dist_path))
   gulp.src("#{semantic_path}/themes/default/assets/**/*").pipe(gulp.dest("#{dist_path}/themes/default/assets/"))
 
+gulp.task 'env', ->
+ env file: ".env.json"
+
 gulp.task 'build', ['clean', 'copy', 'css', 'js']
 
 server_main = "#{src_path}/server.coffee"
@@ -84,7 +87,7 @@ gulp.task 'server', ->
     script: server_main
     watch: [server_main]
     execMap:
-      coffee: "#{modules_path}\\.bin\\coffee"
+      coffee: "#{modules_path}/.bin/coffee"
     env:
       PORT: process.env.PORT or 3000
 
