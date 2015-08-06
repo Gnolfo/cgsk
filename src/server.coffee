@@ -108,47 +108,91 @@ dbCheckUser = (id) ->
 
 dbStartRaid = ->
   deferred = Q.defer()
+  dbLogStart()
   dbQuery "INSERT INTO raids (time_start) VALUES (now())",  deferred.makeNodeResolver()
+  deferred.promise  
+
+dbEndRaid = (raid_id) ->
+  raid_id = mysql.escape raid_id
+  deferred = Q.defer()
+  dbLogEnd()
+  dbQuery "UPDATE raids set time_end=NOW where raid_id=#{raid_id}",  deferred.makeNodeResolver()
+  deferred.promise  
+
+dbGetOpenRaid = ->
+  deferred = Q.defer()
+  dbQuery "SELECT * FROM raids where time_end is null order by time_start limit 1",  deferred.makeNodeResolver()
   deferred.promise  
 
 dbAddRaiders = (raid_id, characters) ->
   deferred = Q.defer()
   raid_id = mysql.escape raid_id
-  characters = [characters] unless typeof characters == 'Array'
   inserts = characters.map (v) ->
-    "("+raid_id+","+mysql.escape v.id+")"
-  sql = "insert into raid_characters (raid_id, character_id) VALUES "+inserts.join ",\n"
+    dbLogAddRem v, true
+    "(#{raid_id},"+(mysql.escape v)+")"
+  sql = "insert into raids_characters (raid_id, character_id) VALUES "+inserts.join ",\n"
+  console.log sql
   dbQuery sql,  deferred.makeNodeResolver()
   deferred.promise  
 
 dbRemRaiders = (raid_id, characters) ->
   deferred = Q.defer()
   raid_id = mysql.escape raid_id
-  characters = [characters] unless typeof characters == 'Array'
   list = characters.map (v) ->
-    mysql.escape v.id
-  sql = "delete from raid_characters WHERE raid_id="+raid_id+" and character_id in ("+inserts.join ","+")"
+    dbLogAddRem v, false
+    mysql.escape v
+  sql = "delete from raids_characters WHERE raid_id="+raid_id+" and character_id in ("+(inserts.join ",")+")"
+  dbQuery sql,  deferred.makeNodeResolver()
+  deferred.promise 
+
+# 
+# Logging Queries 
+# 
+
+dbLogStart = ->
+  deferred = Q.defer()
+  sql = "insert into logs (action, timestamp) VALUES ('start', NOW() )"
   dbQuery sql,  deferred.makeNodeResolver()
   deferred.promise  
 
-dbKillBoss = (raid_id, boss_id) ->
+dbLogEnd = ->
   deferred = Q.defer()
-  raid_id = mysql.escape raid_id
-  boss_id = mysql.escape boss_id
-  sql = "isert into logs (action, subject_id, timestamp) VALUES ('boss',"+raid_id+", NOW() )"
+  sql = "insert into logs (action, timestamp) VALUES ('end', NOW() )"
   dbQuery sql,  deferred.makeNodeResolver()
-  deferred.promise  
+  deferred.promise    
 
-dbLoot = (raid_id, character_id, item_id) ->
-  deferred = Q.defer()
-  raid_id = mysql.escape raid_id
-  boss_id = mysql.escape boss_id
+dbLogAddRem = (character_id, add) ->
   character_id = mysql.escape character_id
+  deferred = Q.defer()
+  action = mysql.escape (if add then 'add' else 'rem')
+  sql = "insert into logs (action, subject_id, timestamp) VALUES ("+action+","+character_id+", NOW() )"
+  dbQuery sql,  deferred.makeNodeResolver()
+  deferred.promise  
+
+dbLogBoss = (boss_id) ->
+  boss_id = mysql.escape boss_id
+  deferred = Q.defer()
   sql = "insert into logs (action, subject_id, timestamp) VALUES ('boss',"+boss_id+", NOW() )"
   dbQuery sql,  deferred.makeNodeResolver()
   deferred.promise  
 
+dbLogLoot = (raid_id, character_id, item_id) ->
+  raid_id = mysql.escape raid_id
+  character_id = mysql.escape character_id
+  item_id = mysql.escape item_id
+  deferred = Q.defer()
+  sql = "insert into logs (action, subject_id, object_id, timestamp) VALUES ('loot',"+character_id+","+item_id+", NOW() )"
+  dbQuery sql,  deferred.makeNodeResolver()
+  deferred.promise  
+
+#
+# Tricky query to get all active people (including looter) who will be affected in the lists from a loot suicide
+#
+
 dbGetActivesForSuicide = (raid_id, list_id, character_id) ->
+  raid_id = mysql.escape raid_id
+  list_id = mysql.escape list_id
+  character_id = mysql.escape character_id
   deferred = Q.defer()
   sql = "select l.* from lists looter
     join lists l on l.list_id=#{list_id} and l.position >= looter.position 
@@ -161,17 +205,22 @@ dbGetActivesForSuicide = (raid_id, list_id, character_id) ->
   dbQuery sql, deferred.makeNodeResolver()
   deferred.promise  
 
-dbSuicide = (raid_id, character_id, item_id, list_id) ->
+#
+# Query to move around character positions in a list 
+# new_ranks is an array of character_id/position pairs that reflect where they should move to
+# anyone not in new_ranks will keep their position
+#
+
+dbChangeRankings = (list_id, new_ranks) ->
+  list_id = mysql.escape list_id
   deferred = Q.defer()
-  raid_id = mysql.escape raid_id
-  boss_id = mysql.escape boss_id
-  character_id = mysql.escape character_id
-  dbGetActivesForSuicide(raid_id, mysql.escape list_id, character_id)
-    .then (old_ranks) ->
-      [looter, actives...] = old_ranks
-      transition_ranks = [actives..., looter]
-      new_ranks = []
-      new_ranks.push position: old_ranks[i].position, character_id: rank.character_id for rank, i in transition_ranks
+  updates = new_ranks.map (v) ->
+    position = mysql.escape v.position
+    character_id = mysql.escape v.character_id
+    dbQuery "update lists set position=#{position} where list_id=#{list_id} and character_id=#{character_id}", deferred.makeNodeResolver()
+  Q.all updates
+  .then  ->
+    deferred.promise  
 
 
 
@@ -187,23 +236,11 @@ authRequired = (req,res,next)  ->
     res.send(error: 'auth')
 
 app.get '/test', (req,res) ->
-  raid_id = 12
-  item_id = 124238
-  character_id = 22
-  list_id = 1
-  list_id = mysql.escape list_id
-  raid_id = mysql.escape raid_id
-  boss_id = mysql.escape boss_id
-  character_id = mysql.escape character_id
-  dbGetActivesForSuicide(raid_id, list_id, character_id)
-    .then (old_ranks) ->
-      old_ranks.sort (a,b) ->
-        a.position - b.position
-      [looter, actives...] = old_ranks
-      transition_ranks = [actives..., looter]
-      new_ranks = []
-      new_ranks.push position: old_ranks[i].position, character_id: rank.character_id for rank, i in transition_ranks
-      res.send old_ranks: old_ranks, transition_ranks: transition_ranks, new_ranks: new_ranks
+  dbGetOpenRaid()
+  .then (raid) ->
+    raid_id = if raid.length > 0 then raid.pop().id else false
+    res.send(raid:raid_id)
+ 
 
 
 app.post '/login', (req,res) ->
@@ -219,33 +256,75 @@ app.post '/login', (req,res) ->
         res.locals = user:cookie_user
       res.send(success: success)
 
-app.post '/loot', authRequired, (req,res) ->
+app.post '/loot', (req,res) ->
   list_id = req.body.list_id
   character_id = req.body.character_id
   item_id = req.body.item_id
-  res.send(message: {list_id: list_id, character_id:character_id, item_id: item_id})
+  raid_id = req.body.raid_id
+  dbGetActivesForSuicide(raid_id, list_id, character_id)
+    .then (old_ranks) ->
+      # The actual suicide logic, first sort the rankings of actives by position (looter should be first thanks to getActivesForSuicide
+      old_ranks.sort (a,b) ->
+        a.position - b.position
+      # next two lines destructure the looter from the remaining actives and put them at the bottom of actives in transition_ranks
+      # essentially the heart of SK in two lines of code
+      [looter, actives...] = old_ranks
+      transition_ranks = [actives..., looter]
+      # But now we have to stitch the positions back together, essentially charcters draw from transition and position draws from old_ranks
+      # The result is the looter gets the position of the last active, and all actives trade up their position w/ the top active getting the old looter position
+      new_ranks = transition_ranks.map (v,i) ->
+        position: old_ranks[i].position, character_id: v.character_id
+      dbChangeRankings list_id, new_ranks
+      .then ->
+        dbLogLoot raid_id, character_id, item_id
+        dbGetLists()
+        .then (rankings) ->
+          res.send list: rankings
+
 
 app.post '/start', (req,res) ->
-  characters = req.body.characters
-  dbStartRaid()
-    .then (results) ->
-      res.send(raid_id: results.insertId)
+  dbGetOpenRaid()
+  .then (raid) ->
+    if raid.length > 0
+      res.status(400).send error: 'an open raid already exists' 
+    else
+      characters = req.body.characters
+      dbStartRaid()
+      .then (results) ->
+        raid_id = results.insertId
+        dbAddRaiders(raid_id, characters)
+        .then ->
+          res.send(raid_id: results.insertId)
 
 app.post '/end', (req,res) ->
-  5 
+  raid_id = req.body.raid_id
+  dbEndRaid()
+  .then ->
+    res.send success:true
 
 app.post '/boss', (req,res) ->
-  5
+  boss_id = req.body.boss_id
+  dbLogBoss()
+  .then ->
+    res.send success:true
 
 app.post '/add', (req,res) ->
-  5
+  raid_id = req.body.raid_id
+  characters = req.body.characters
+  dbAddRaiders(raid_id, characters)
+  .then ->
+    res.send success:true
 
 app.post '/rem', (req,res) ->
-  5
+  raid_id = req.body.raid_id
+  characters = req.body.characters
+  dbRemRaiders(raid_id, characters)
+  .then ->
+    res.send success:true
 
 app.get '/', (req, res) ->
-  Q.all [dbGetCharacters(), dbGetLists(), dbGetLogs(), dbGetRaidData()]
-    .spread (characters, lists, logs, raid_data) -> 
+  Q.all [dbGetCharacters(), dbGetLists(), dbGetLogs(), dbGetRaidData(), getOpenRaid()]
+    .spread (characters, lists, logs, raid_data, open_raid) -> 
       characters = characters.reduce (pv, cv) ->
         pv[cv.id] = cv
         pv
@@ -260,7 +339,7 @@ app.get '/', (req, res) ->
         pv[cv.id].items.push(item_id: cv.item_id, list_id: cv.list_id)
         pv
       ,{}
-      raid_id = false
+      raid_id = if open_raid.length > 0 then open_raid.pop().id else false
       res.render 'index.hbs', (characters:characters, lists: lists, logs: logs, raid_data: raid_data, raid_id: raid_id)
 
 ## catch 404 and forwarding to error handler
