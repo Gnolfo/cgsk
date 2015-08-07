@@ -1,6 +1,10 @@
 {
-  "name": "react-express-template",
+  "name": "cgsk",
   "description": "Suicid Kings tracking app for super pro raid group California Gurls (made with react-express-template )",
   "keywords": ["node", "express", "react", "es6", "coffeescript", "semantic-ui", "template", "boilerplate"],
-  "logo": "https://facebook.github.io/react/img/logo.svg"
+  "version": "1.0.0",
+  "logo": "https://facebook.github.io/react/img/logo.svg",
+  "engines": {
+	"node": "0.12.2"
+  }
 }
