@@ -42,11 +42,14 @@
     "morgan": "^1.5.3",
     "mysql": "~2.8.0",
 
-    
-    "Q": "~1.4.1",
-    "react": "^0.13.3",
-    "react-router": "^0.13.3",
 
+    "Q": "~1.4.1",
+
+
+
+    "rimraf": "^2.3.3",
+    "semantic-ui-css": "^1.12.2",
+    "serve-favicon": "^2.2.0",
 
     "transform-loader": "^0.2.2"
   },
