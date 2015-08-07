@@ -8,8 +8,8 @@ Header = require('./header')
 
 RaidEmpty = React.createClass
   getInitialState: ->
-    clist = Object.keys(characters).map (v) -> 
-      id: characters[v].id, active: false
+    clist = Object.keys(window.characters).map (v) -> 
+      id: window.characters[v].id, active: false
     character_list: clist
   startRaid: ->
     @props.raidStarted (@state.character_list.filter (v) -> v.active) if confirm 'Are you sure you want to start a new raid?'
@@ -37,9 +37,9 @@ CharacterList = React.createClass
 
 ListCharacter = React.createClass
   handleClick: (event) ->
-    @props.characterToggled @props.character_id, !@props.active
+    @props.characterToggled @props.character_id, !@props.active 
   render: -> 
-    character_info = characters[@props.character_id]
+    character_info = window.characters[@props.character_id]
     classes = ['item', 'class', 'class-'+character_info.class]
     classes.push 'active' if @props.active
     <div className={classes.join ' '} onClick={@handleClick}>
@@ -77,16 +77,11 @@ Login = React.createClass
     </div>
 
 RaidDashboard = React.createClass
-  charactersFromGlobal: ->
-    Object.keys(characters).map (v) -> id: characters[v].id
   getInitialState: ->
-    raid_id: null,
-    active_characters: [],
     boss_id: false,
     loot_list: [],
-    looting: false
-  raidStarted: (character_list) ->
-    65
+    looting: false,
+    list_id: 1,
   bossSelected: (boss_id) ->
     $('#bossModal').modal 'show'
     @setState boss_id: boss_id, loot_list: [] 
@@ -103,23 +98,41 @@ RaidDashboard = React.createClass
       p
     , []
     list.push (item: item, count:1) if new_item and inc
-    @setState loot_list: list    
+    @setState loot_list: list 
   getRightCol: ->
     if @state.loot_list.length > 0 and @state.looting
-      <LootAssignment items={@state.loot_list} />
+      <LootAssignment items={@state.loot_list} itemSelected={@itemSelected} itemLooted={@itemLooted} />
     else
-      <RaidMenu bossSelected={@bossSelected} loot_list={@state.loot_list} />
+      <RaidMenu bossSelected={@bossSelected} raidEnded={@props.raidEnded} loot_list={@state.loot_list} />
+  itemSelected: (item) ->
+    @setState list_id: item.list_id
+  activeCharactersFromList: ->
+    self = this
+    list = window.lists[@state.list_id]
+    active_list = Object.keys(list).filter (v) -> 
+      id = list[v].character_id
+      self.props.character_list.reduce (p,c) ->
+        p = true if c.id == id 
+        p
+      , false
+    active_list = active_list.map (v) -> id: list[v].character_id, active: false
+    active_list
+  characterToggled: (character_id, active) ->
+    if looting
+      5
   commitLoot: ->
     @setState looting: true
   finishedLooting: ->
     @setState looting: false
   render: ->
+    active_list = @activeCharactersFromList()
     <div className="column">
       <BossItemSelection boss_id={@state.boss_id} loot_list={@state.loot_list} updateLootList={@updateLootList} commitLoot={@commitLoot} />
       <div className="ui segment">
         <div className="ui two column middle aligned very relaxed stackable grid">
           <div className="column" style={verticalAlign:"top"}> 
-            <CharacterList characters={@charactersFromGlobal()} />
+            {list_map[@state.list_id]}
+            <CharacterList characters={active_list} characterToggled={@characterToggled} clickable={@state.looting} />
           </div>
           <div className="ui vertical divider">
           </div>
@@ -147,15 +160,23 @@ RaidMenu = React.createClass
         Add/Remove
       </div>
       <div className="content">
-        <RaidBossList bossSelected={@props.bossSelected} loot_list={@props.loot_list} />
+        Coming soon!
       </div>
       <div className="title">
         <i className="dropdown icon"></i>
         Finish Raid
       </div>
       <div className="content">
-        <RaidBossList bossSelected={@props.bossSelected} loot_list={@props.loot_list} />
+        <RaidEnd raidEnded={@props.raidEnded}/>
       </div>
+    </div>
+
+RaidEnd = React.createClass
+  handleClick: ->
+    @props.raidEnded()
+  render: ->
+    <div className="content">
+      <button className="ui button" onClick={@handleClick}>End Raid</button>
     </div>
 
 RaidBossCard = React.createClass
@@ -175,7 +196,7 @@ RaidBossCard = React.createClass
 RaidBossList = React.createClass
   renderBosses: ->
     ordered_bosses = []
-    ordered_bosses.push boss_data for boss_id, boss_data of raid_data
+    ordered_bosses.push boss_data for boss_id, boss_data of window.raid_data
     ordered_bosses.sort (a,b) ->
       a.position - b.position
     <RaidBossCard id={boss_data.id} name={boss_data.name} avatar_url={boss_data.avatar_url} bossSelected={@props.bossSelected} /> for boss_data in ordered_bosses
@@ -228,10 +249,10 @@ BossItemSelection = React.createClass
   componentDidUpdate: ->
     $WowheadPower.refreshLinks() if typeof $WH.isset is "function"
   renderItems: ->
-    <BossLootItem item={item} updateLootList={@props.updateLootList} /> for item in raid_data[@props.boss_id].items if @props.boss_id != false
+    <BossLootItem item={item} updateLootList={@props.updateLootList} /> for item in window.raid_data[@props.boss_id].items if @props.boss_id != false
   render: ->
     boss_data = name: 'None', 'avatar_url': '#'
-    boss_data = raid_data[@props.boss_id] if @props.boss_id != false
+    boss_data = window.raid_data[@props.boss_id] if @props.boss_id != false
     <div className="ui fullscreen modal" id="bossModal">
       <i className="close icon"></i>
       <div className="header">
@@ -277,11 +298,13 @@ BossItemSelection = React.createClass
 # 5. (modal) end "sure?" -> new raid = goto (1)
 
 LootItem = React.createClass
+  handleClick: ->
+    @props.itemSelected @props.item 
   render: ->
     <div>
-      <div className="title">
+      <div className="title" onClick={@handleClick}>
         <i className="dropdown icon"></i>
-        <a href="#" rel={"item-"+@props.item_id} />
+        <a href="#" rel={"item-"+@props.item.item_id} />
       </div>
       <div className="content">
         <p>Selected Person Goes Here</p>
@@ -292,7 +315,7 @@ LootAssignment = React.createClass
   componentDidMount: ->
     $('.ui.accordion').accordion()
   renderLootItems: -> 
-    <LootItem item_id={data.item.item_id} list_id={data.item.list_id} /> for n in [1..data.count] for data in @props.items
+    <LootItem item={data.item} itemSelected={@props.itemSelected} /> for n in [1..data.count] for data in @props.items
   render: ->
     <div className="ui styled accordion">
       {@renderLootItems()}
@@ -300,13 +323,26 @@ LootAssignment = React.createClass
 
 Home = React.createClass
   getInitialState: ->
-    raid_id: raid_id,
-    active_characters: []
+    raid_id: window.raid_id,
+    active_raiders: window.active_raiders
+  raidEnded: ->
+    if confirm 'Are you sure you want to end the raid?' 
+      $.post '/end', raid_id: window.raid_id
+      window.raid_id = false
+      @setState raid_id: false, active_raiders: []    
   raidStarted: (character_list) ->
-    # ajax to get raid_id
-    @setState raid_id: raid_id, active_characters: character_list
+    self = this
+    list = character_list.map (v) -> 
+      v.id
+    $.post '/start', characters: list
+    .done (data) ->
+      if data.raid_id?
+        window.raid_id = data.raid_id 
+        self.setState raid_id: window.raid_id, active_raiders: character_list
+      else 
+        alert data.error if data.error?
   getRaidPanel: ->
-    if raid_id isnt false then <RaidDashboard raid_id={raid_id} character_list={@state.active_characters} /> else <RaidEmpty raidStarted={@raidStarted}/>
+    if window.raid_id isnt false then <RaidDashboard raid_id={window.raid_id} character_list={@state.active_raiders} raidEnded={@raidEnded} /> else <RaidEmpty raidStarted={@raidStarted}/>
   render: ->
     <div className="column">
       <div className="ui segment">
@@ -318,15 +354,15 @@ Home = React.createClass
 
 LogItemLoot = React.createClass
   render: -> 
-    <span>{characters[@props.data.subject_id].name} looted <a href="#" rel={"item-"+@props.data.object_id} /></span>
+    <span>{window.characters[@props.data.subject_id].name} looted <a href="#" rel={"item-"+@props.data.object_id} /></span>
 
 LogItemRaidAdd = React.createClass
   render: -> 
-    <span>{characters[@props.data.subject_id].name} joined raid</span>
+    <span>{window.characters[@props.data.subject_id].name} joined raid</span>
 
 LogItemRaidRem = React.createClass
   render: -> 
-    <span>{characters[@props.data.subject_id].name} left raid</span>
+    <span>{window.characters[@props.data.subject_id].name} left raid</span>
 
 LogItemRaidStart = React.createClass
   render: -> 
@@ -374,7 +410,7 @@ LogItem = React.createClass
 
 Log = React.createClass
   getInitialState: ->
-    logs: logs
+    logs: window.logs
   renderLogItems: -> 
     <LogItem data={data} /> for data in @state.logs 
   render: ->
@@ -386,15 +422,15 @@ List = React.createClass
   contextTypes: 
     router: React.PropTypes.func.isRequired
   getInitialState: ->
-    characters: characters
+    characters: window.characters
   componentDidMount: -> 
     # This is to tell the wowhead widget to re-linkify everything, otherwise it breaks whenever a component re-mounts
     $WowheadPower.refreshLinks() if typeof $WH.isset is "function"
   renderCharacters: (list_id) -> 
-    list = lists[list_id]
+    list = window.lists[list_id]
     <ListCharacter character_id={character.character_id} /> for n, character of list 
   charactersFromList: ->
-    list = lists[@props.params.list_id]
+    list = window.lists[@props.params.list_id]
     Object.keys(list).map (v) -> id: list[v].character_id
   render: -> 
     <div className="column">
@@ -428,7 +464,7 @@ About = React.createClass
 
 Main = React.createClass
   getInitialState: ->
-      character_data: characters
+      character_data: window.characters
   render: ->
     <div>
       <Header/>
@@ -449,6 +485,13 @@ $ ->
   Router.run routes, Router.HashLocation, (Handler, state) ->
     React.render(<Handler params=state.params />, document.body)
  
+list_map = {
+  1: 'Armor',
+  2: 'Tier',
+  3: 'Weapons/Trinkets',
+  4: 'Accessories'
+}
+
 wowhead_tooltips = 
   colorlinks: true
   iconizelinks: true

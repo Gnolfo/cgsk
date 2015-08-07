@@ -112,11 +112,17 @@ dbStartRaid = ->
   dbQuery "INSERT INTO raids (time_start) VALUES (now())",  deferred.makeNodeResolver()
   deferred.promise  
 
+dbGetActives = (raid_id) ->
+  raid_id = mysql.escape raid_id
+  deferred = Q.defer()
+  dbQuery "select * from raids_characters where raid_id=#{raid_id}", deferred.makeNodeResolver()
+  deferred.promise  
+
 dbEndRaid = (raid_id) ->
   raid_id = mysql.escape raid_id
   deferred = Q.defer()
   dbLogEnd()
-  dbQuery "UPDATE raids set time_end=NOW where raid_id=#{raid_id}",  deferred.makeNodeResolver()
+  dbQuery "UPDATE raids set time_end=NOW() where id=#{raid_id}",  deferred.makeNodeResolver()
   deferred.promise  
 
 dbGetOpenRaid = ->
@@ -131,7 +137,6 @@ dbAddRaiders = (raid_id, characters) ->
     dbLogAddRem v, true
     "(#{raid_id},"+(mysql.escape v)+")"
   sql = "insert into raids_characters (raid_id, character_id) VALUES "+inserts.join ",\n"
-  console.log sql
   dbQuery sql,  deferred.makeNodeResolver()
   deferred.promise  
 
@@ -298,7 +303,7 @@ app.post '/start', (req,res) ->
 
 app.post '/end', (req,res) ->
   raid_id = req.body.raid_id
-  dbEndRaid()
+  dbEndRaid raid_id
   .then ->
     res.send success:true
 
@@ -323,8 +328,8 @@ app.post '/rem', (req,res) ->
     res.send success:true
 
 app.get '/', (req, res) ->
-  Q.all [dbGetCharacters(), dbGetLists(), dbGetLogs(), dbGetRaidData(), getOpenRaid()]
-    .spread (characters, lists, logs, raid_data, open_raid) -> 
+  Q.all [dbGetCharacters(), dbGetLists(), dbGetLogs(), dbGetRaidData(), dbGetOpenRaid(), dbGetActives()]
+    .spread (characters, lists, logs, raid_data, open_raid, active_raiders) -> 
       characters = characters.reduce (pv, cv) ->
         pv[cv.id] = cv
         pv
@@ -340,7 +345,13 @@ app.get '/', (req, res) ->
         pv
       ,{}
       raid_id = if open_raid.length > 0 then open_raid.pop().id else false
-      res.render 'index.hbs', (characters:characters, lists: lists, logs: logs, raid_data: raid_data, raid_id: raid_id)
+      if raid_id != false
+        dbGetActives(raid_id)
+        .then (raiders) ->
+          active_raiders = raiders.map (v) -> id: v.character_id, active: true
+          res.render 'index.hbs', (characters:characters, lists: lists, logs: logs, raid_data: raid_data, raid_id: raid_id, active_raiders: active_raiders)
+      else
+        res.render 'index.hbs', (characters:characters, lists: lists, logs: logs, raid_data: raid_data, raid_id: raid_id, active_raiders: [])
 
 ## catch 404 and forwarding to error handler
 app.use (req, res, next) ->

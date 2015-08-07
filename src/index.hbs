@@ -7,11 +7,12 @@
   <script type="text/javascript" src="/js/moment.min.js"></script>
   <script type="text/javascript">
 	var wowhead_tooltips = { "colorlinks": true, "iconizelinks": true, "renamelinks": true, "hide": { "droppedby": true, "dropchance": true } }
-	var characters = {{{ json characters }}}
-	var lists = {{{ json lists }}}
-	var logs = {{{ json logs }}}
-	var raid_data = {{{ json raid_data false }}}
-	var raid_id = {{ raid_id }}
+	window.characters = {{{ json characters }}}
+	window.lists = {{{ json lists }}}
+	window.logs = {{{ json logs }}}
+	window.raid_data = {{{ json raid_data false }}}
+	window.raid_id = {{ raid_id }}
+	window.active_raiders = {{{ json active_raiders [] }}}
 </script>
 </head>
 <body>
