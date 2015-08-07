@@ -1,9 +1,12 @@
 {
-  "name": "application-name",
-  "version": "0.0.1",
+  "name": "cgsk",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "postinstall": "gulp build"
+  },
+  "engines": {
+    "node": "0.12.x"
   },
   "dependencies": {
     "autoprefixer-core": "^5.1.11",
