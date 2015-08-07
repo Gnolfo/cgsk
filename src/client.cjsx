@@ -93,7 +93,7 @@ Login = React.createClass
 RaidDashboard = React.createClass
   getInitialState: ->
     boss_id: false,
-    loot_list: [],
+    loot_items: [],
     raiding_characters: [],
     looting: false,
     list_id: 1
@@ -101,9 +101,9 @@ RaidDashboard = React.createClass
     @changeLootList 1
   bossSelected: (boss_id) ->
     $('#bossModal').modal 'show'
-    @setState boss_id: boss_id, loot_list: [] 
+    @setState boss_id: boss_id, loot_items: [] 
   updateLootList: (item, inc) ->
-    list = @state.loot_list
+    list = @state.loot_items
     new_item = true
     list = list.reduce (p,c) ->
       if c.item.item_id == item.item_id
@@ -115,14 +115,33 @@ RaidDashboard = React.createClass
       p
     , []
     list.push (item: item, count:1) if new_item and inc
-    @setState loot_list: list 
+    @setState loot_items: list 
+  doneLooting: ->
+    @setState loot_items: [], looting: false
   getRightCol: ->
-    if @state.loot_list.length > 0 and @state.looting
-      <LootAssignment items={@state.loot_list} itemSelected={@itemSelected} itemLooted={@itemLooted} raidingCharacters={@state.raiding_characters} />
+    if @state.loot_items.length > 0 and @state.looting
+      <LootAssignment items={@state.loot_items} itemSelected={@itemSelected} itemLooted={@itemLooted} raidingCharacters={@state.raiding_characters} doneLooting={@doneLooting} />
     else
-      <RaidMenu bossSelected={@bossSelected} raidEnded={@props.raidEnded} loot_list={@state.loot_list} />
+      <RaidMenu bossSelected={@bossSelected} raidEnded={@props.raidEnded} loot_items={@state.loot_items} />
+  showList: (list_id) ->
+    @changeLootList list_id if !@state.looting
+  showListNavButton: (list_id) ->
+    classes = ['ui','button']
+    classes.push 'active' if @state.list_id == list_id
+    <div className={classes.join ' '} onClick={(() -> this.showList(list_id)).bind(this)}>{list_map[list_id]}</div>
+  showListNavButtons: ->
+    lists = [1,2,3,4]
+    @showListNavButton(list_id) for list_id in lists
+  showListNav: ->
+    list_name = list_map[@state.list_id]
+    if @state.looting
+      {list_name}
+    else
+      <div className="ui two top attached buttons">
+        {@showListNavButtons()}
+      </div>
   itemSelected: (item) ->
-    @changeLootList(item.list_id)
+    @changeLootList item.list_id
   changeLootList:  (list_id) ->
     self = this
     list = window.lists[list_id]
@@ -146,11 +165,11 @@ RaidDashboard = React.createClass
     @setState looting: false
   render: ->
     <div className="column">
-      <BossItemSelection boss_id={@state.boss_id} loot_list={@state.loot_list} updateLootList={@updateLootList} commitLoot={@commitLoot} />
+      <BossItemSelection boss_id={@state.boss_id} loot_items={@state.loot_items} updateLootList={@updateLootList} commitLoot={@commitLoot} />
       <div className="ui segment">
         <div className="ui two column middle aligned very relaxed stackable grid">
           <div className="column" style={verticalAlign:"top"}> 
-            {list_map[@state.list_id]}
+            {@showListNav()}
             <CharacterList characters={@state.raiding_characters} characterToggled={@characterToggled} clickable={@state.looting} />
           </div>
           <div className="ui vertical divider">
@@ -172,7 +191,7 @@ RaidMenu = React.createClass
         Boss Selection
       </div>
       <div className="content">
-        <RaidBossList bossSelected={@props.bossSelected} loot_list={@props.loot_list} />
+        <RaidBossList bossSelected={@props.bossSelected} loot_items={@props.loot_items} />
       </div>
       <div className="title">
         <i className="dropdown icon"></i>
@@ -292,7 +311,7 @@ BossItemSelection = React.createClass
         Final Loot
       </h4>
       <div className="content">
-        <BossLootList loot_list={@props.loot_list} />
+        <BossLootList loot_list={@props.loot_items} />
       </div>
       <div className="actions">
         <div className="ui black deny button">
@@ -340,6 +359,11 @@ LootItem = React.createClass
   cancelProposal: ->
     @setState confirmingLoot: false
   confirmProposal: ->
+    self = this
+    $.post '/loot', character_id: @state.winner.id, item_id: @props.item.item_id, list_id: @props.item.list_id, raid_id: window.raid_id
+    .done (data) ->
+      window.lists = data.lists if data.lists?
+      self.props.itemSelected self.props.item 
     @setState lootConfirmed: true
   handleClick: ->
     @props.itemSelected @props.item 
@@ -370,8 +394,25 @@ LootItem = React.createClass
     </div>
 
 LootAssignment = React.createClass
+  getInitialState: ->
+    proposeDone: false
   componentDidMount: ->
     $('.ui.accordion').accordion()
+  getDoneButton: ->
+    if @state.proposeDone 
+      <div className="ui buttons">
+        <button className="ui negative button" onClick={@cancelProposal}>Cancel</button>
+        <div className="or"></div>
+        <button className="ui positive button" onClick={@doneLooting}>Confirm</button>
+      </div>
+    else
+      <button onClick={@proposeDone}>Done Looting</button>
+  proposeDone: ->
+    @setState proposeDone: true
+  cancelProposal: ->
+    @setState proposeDone: false
+  doneLooting: ->
+    @props.doneLooting()
   renderLootItems: -> 
     <LootItem item={data.item} itemSelected={@props.itemSelected} raidingCharacters={@props.raidingCharacters} /> for n in [1..data.count] for data in @props.items
   render: ->
@@ -379,8 +420,8 @@ LootAssignment = React.createClass
       <div className="ui styled accordion">
         {@renderLootItems()}
       </div>
-      <div className="content">
-        <button>Done Looting</button>
+      <div className="ui content">
+        {@getDoneButton()}
       </div>
     </div>
 
@@ -400,6 +441,7 @@ Home = React.createClass
     $.post '/start', characters: list
     .done (data) ->
       if data.raid_id?
+        window.scrollTo 0, 0
         window.raid_id = data.raid_id 
         self.setState raid_id: window.raid_id, active_raiders: character_list
       else 

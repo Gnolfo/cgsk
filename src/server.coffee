@@ -52,14 +52,28 @@ hbs.registerHelper 'json', json
 #   res.header("Access-Control-Allow-Headers", "X-Requested-With")
 #   next()
 
-pool = mysql.createPool(host: process.env["DATABASE_HOST"], user: process.env["DATABASE_USER"], password: process.env["DATABASE_PASS"], database: process.env["DATABASE_DB"])
+pool = mysql.createPool(
+    host: process.env["DATABASE_HOST"], 
+    user: process.env["DATABASE_USER"], 
+    password: process.env["DATABASE_PASS"], 
+    database: process.env["DATABASE_DB"],
+    waitForConnections: true,
+    connectionLimit: 10)
 
 closeDB = ->
   dbConnected = false
   dbConnection.end()
 
-dbQuery = (query, cb) ->
+dbQuery = (query, cb) ->  
+  debug = false
+  console.log 'running: '+query if debug
+  pool.query query, (err,results) ->
+    console.log 'ran: '+query if debug
+    cb err, results
+
+oldDbQuery = (query,cb) ->
   pool.getConnection (err, conn) ->
+    throw err if err
     conn.query query, (err, results) ->
       cb err, results
       conn.release()
@@ -218,14 +232,26 @@ dbGetActivesForSuicide = (raid_id, list_id, character_id) ->
 
 dbChangeRankings = (list_id, new_ranks) ->
   list_id = mysql.escape list_id
-  deferred = Q.defer()
   updates = new_ranks.map (v) ->
+    deferred = Q.defer()
     position = mysql.escape v.position
     character_id = mysql.escape v.character_id
     dbQuery "update lists set position=#{position} where list_id=#{list_id} and character_id=#{character_id}", deferred.makeNodeResolver()
+    deferred.promise
   Q.all updates
-  .then  ->
-    deferred.promise  
+
+
+#
+# Utility
+# 
+
+assembleListsForFrontend = (list_rows) ->
+  list_rows.reduce (pv, cv) ->
+        pv[cv.list_id] = {} unless typeof pv[cv.list_id] is 'object'
+        pv[cv.list_id][cv.position] = cv
+        pv
+      , {}
+
 
 
 
@@ -247,7 +273,6 @@ app.get '/test', (req,res) ->
     res.send(raid:raid_id)
  
 
-
 app.post '/login', (req,res) ->
   username = req.body.username
   password = SHA256 req.body.password
@@ -268,7 +293,7 @@ app.post '/loot', (req,res) ->
   raid_id = req.body.raid_id
   dbGetActivesForSuicide(raid_id, list_id, character_id)
     .then (old_ranks) ->
-      # The actual suicide logic, first sort the rankings of actives by position (looter should be first thanks to getActivesForSuicide
+      # The actual suicide logic, first sort the rankings of actives by position (looter should be first thanks to getActivesForSuicide)
       old_ranks.sort (a,b) ->
         a.position - b.position
       # next two lines destructure the looter from the remaining actives and put them at the bottom of actives in transition_ranks
@@ -284,7 +309,7 @@ app.post '/loot', (req,res) ->
         dbLogLoot raid_id, character_id, item_id
         dbGetLists()
         .then (rankings) ->
-          res.send list: rankings
+          res.send lists: (assembleListsForFrontend rankings)
 
 
 app.post '/start', (req,res) ->
@@ -327,6 +352,7 @@ app.post '/rem', (req,res) ->
   .then ->
     res.send success:true
 
+
 app.get '/', (req, res) ->
   Q.all [dbGetCharacters(), dbGetLists(), dbGetLogs(), dbGetRaidData(), dbGetOpenRaid(), dbGetActives()]
     .spread (characters, lists, logs, raid_data, open_raid, active_raiders) -> 
@@ -334,11 +360,7 @@ app.get '/', (req, res) ->
         pv[cv.id] = cv
         pv
       , {}
-      lists = lists.reduce (pv, cv) ->
-        pv[cv.list_id] = {} unless typeof pv[cv.list_id] is 'object'
-        pv[cv.list_id][cv.position] = cv
-        pv
-      , {}
+      lists = assembleListsForFrontend lists  
       raid_data = raid_data.reduce (pv,cv) ->
         pv[cv.id] = (id: cv.id, name: cv.name, avatar_url: cv.avatar_url, items:[], position:cv.position) unless pv[cv.id]?
         pv[cv.id].items.push(item_id: cv.item_id, list_id: cv.list_id)
