@@ -10,6 +10,7 @@
     "npm": "2.11.x"
   },
   "dependencies": {
+    /*
     "autoprefixer-core": "^5.1.11",
     "babel": "^5.2.17",
     "babel-core": "^5.2.17",
@@ -23,8 +24,9 @@
     "cookie-parser": "^1.3.3",
     "crypto-js": "~3.1.5",
     "debug": "^2.2.0",
-    "es6-promise": "^2.1.1",
-    "express": "^4.12.3",
+    "es6-promise": "^2.1.1",*/
+    "express": "^4.12.3"
+    /*,
     "gulp": "^3.8.11",
     "gulp-less": "^3.0.3",
     "gulp-livereload": "^3.7.0",
