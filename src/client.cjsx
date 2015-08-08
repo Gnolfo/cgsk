@@ -505,7 +505,7 @@ LogItem = React.createClass
     Item = LogItems[@props.data.action]
     <div className="item">
       <div className="right floated content">
-        <div className="metadata">{moment(@props.data.timestamp, "YYYY-MM-DD HH:mm:ss").fromNow()}</div>
+        <div className="metadata">{moment.utc(@props.data.timestamp).fromNow()}</div>
       </div>
       <i className={"large middle aligned icon "+Item.icon}></i>
       <div className="content raid-log">

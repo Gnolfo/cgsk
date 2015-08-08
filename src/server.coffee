@@ -58,7 +58,8 @@ pool = mysql.createPool(
     password: process.env["DATABASE_PASS"], 
     database: process.env["DATABASE_DB"],
     waitForConnections: true,
-    connectionLimit: 10)
+    connectionLimit: 10,
+    timezone: 'utc')
 
 closeDB = ->
   dbConnected = false
@@ -90,7 +91,7 @@ dbGetLists = () ->
 
 dbGetLogs = () ->
   deferred = Q.defer()
-  dbQuery "SELECT * FROM logs order by timestamp desc", deferred.makeNodeResolver() 
+  dbQuery "SELECT * FROM logs order by timestamp desc LIMIT 75", deferred.makeNodeResolver() 
   deferred.promise
 
 dbGetBosses = ->
@@ -123,7 +124,7 @@ dbCheckUser = (id) ->
 dbStartRaid = ->
   deferred = Q.defer()
   dbLogStart()
-  dbQuery "INSERT INTO raids (time_start) VALUES (now())",  deferred.makeNodeResolver()
+  dbQuery "INSERT INTO raids (time_start) VALUES (UTC_TIMESTAMP())",  deferred.makeNodeResolver()
   deferred.promise  
 
 dbGetActives = (raid_id) ->
@@ -136,7 +137,7 @@ dbEndRaid = (raid_id) ->
   raid_id = mysql.escape raid_id
   deferred = Q.defer()
   dbLogEnd()
-  dbQuery "UPDATE raids set time_end=NOW() where id=#{raid_id}",  deferred.makeNodeResolver()
+  dbQuery "UPDATE raids set time_end=UTC_TIMESTAMP() where id=#{raid_id}",  deferred.makeNodeResolver()
   deferred.promise  
 
 dbGetOpenRaid = ->
@@ -170,13 +171,13 @@ dbRemRaiders = (raid_id, characters) ->
 
 dbLogStart = ->
   deferred = Q.defer()
-  sql = "insert into logs (action, timestamp) VALUES ('start', NOW() )"
+  sql = "insert into logs (action, timestamp) VALUES ('start', UTC_TIMESTAMP() )"
   dbQuery sql,  deferred.makeNodeResolver()
   deferred.promise  
 
 dbLogEnd = ->
   deferred = Q.defer()
-  sql = "insert into logs (action, timestamp) VALUES ('end', NOW() )"
+  sql = "insert into logs (action, timestamp) VALUES ('end', UTC_TIMESTAMP() )"
   dbQuery sql,  deferred.makeNodeResolver()
   deferred.promise    
 
@@ -184,14 +185,14 @@ dbLogAddRem = (character_id, add) ->
   character_id = mysql.escape character_id
   deferred = Q.defer()
   action = mysql.escape (if add then 'add' else 'rem')
-  sql = "insert into logs (action, subject_id, timestamp) VALUES ("+action+","+character_id+", NOW() )"
+  sql = "insert into logs (action, subject_id, timestamp) VALUES ("+action+","+character_id+", UTC_TIMESTAMP() )"
   dbQuery sql,  deferred.makeNodeResolver()
   deferred.promise  
 
 dbLogBoss = (boss_id) ->
   boss_id = mysql.escape boss_id
   deferred = Q.defer()
-  sql = "insert into logs (action, subject_id, timestamp) VALUES ('boss',"+boss_id+", NOW() )"
+  sql = "insert into logs (action, subject_id, timestamp) VALUES ('boss',"+boss_id+", UTC_TIMESTAMP() )"
   dbQuery sql,  deferred.makeNodeResolver()
   deferred.promise  
 
@@ -200,7 +201,7 @@ dbLogLoot = (raid_id, character_id, item_id) ->
   character_id = mysql.escape character_id
   item_id = mysql.escape item_id
   deferred = Q.defer()
-  sql = "insert into logs (action, subject_id, object_id, timestamp) VALUES ('loot',"+character_id+","+item_id+", NOW() )"
+  sql = "insert into logs (action, subject_id, object_id, timestamp) VALUES ('loot',"+character_id+","+item_id+", UTC_TIMESTAMP() )"
   dbQuery sql,  deferred.makeNodeResolver()
   deferred.promise  
 
