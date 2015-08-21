@@ -428,6 +428,10 @@ LootAssignment = React.createClass
     </div>
 
 Home = React.createClass
+  statics:  
+    willTransitionTo: (transition, params, query, callback) ->
+      transition.redirect('/list/1', params, query) unless window.logged_in
+      callback()
   getInitialState: ->
     raid_id: window.raid_id,
     active_raiders: window.active_raiders
