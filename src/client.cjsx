@@ -364,6 +364,8 @@ LootItem = React.createClass
     .done (data) ->
       window.lists = data.lists if data.lists?
       self.props.itemSelected self.props.item 
+    .fail (data) ->
+      alert data.responseJSON.message      
     @setState lootConfirmed: true
   handleClick: ->
     @props.itemSelected @props.item 
@@ -432,6 +434,8 @@ Home = React.createClass
   raidEnded: ->
     if confirm 'Are you sure you want to end the raid?' 
       $.post '/end', raid_id: window.raid_id
+      .fail (data) ->
+        alert data.responseJSON.message      
       window.raid_id = false
       @setState raid_id: false, active_raiders: []    
   raidStarted: (character_list) ->
@@ -446,6 +450,8 @@ Home = React.createClass
         self.setState raid_id: window.raid_id, active_raiders: character_list
       else 
         alert data.error if data.error?
+    .fail (data) ->
+      alert data.responseJSON.message
   getRaidPanel: ->
     if window.raid_id isnt false then <RaidDashboard raid_id={window.raid_id} character_list={@state.active_raiders} raidEnded={@raidEnded} /> else <RaidEmpty raidStarted={@raidStarted}/>
   render: ->
@@ -563,16 +569,19 @@ About = React.createClass
   render: ->
     <div className="column">
       <div className="ui segment">
-        <h4 className="ui black header">This is the about page.</h4>
+        <h4 className="ui black header">Pretend this page has a low quality animated gif of a construction figure.</h4>
       </div>
     </div>
 
 Main = React.createClass
   getInitialState: ->
-      character_data: window.characters
+      character_data: window.characters,
+      logged_in: window.logged_in
+  loginUpdated: (logged_in) ->
+    this.setState logged_in: logged_in unless @state.logged_in == logged_in
   render: ->
     <div>
-      <Header/>
+      <Header logged_in={@state.logged_in} loginUpdated={@loginUpdated}/>
       <div className="ui page grid">
         <RouteHandler {...@props}/>
       </div>

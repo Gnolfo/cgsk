@@ -165,6 +165,15 @@ dbRemRaiders = (raid_id, characters) ->
   dbQuery sql,  deferred.makeNodeResolver()
   deferred.promise 
 
+dbArchiveList = (raid_id) ->
+  deferred = Q.defer()
+  raid_id = mysql.escape raid_id
+  sql = "insert into raids_list_log 
+        (raid_id, list_id, character_id, position) 
+        select #{raid_id}, list_id, character_id, position from lists"
+  dbQuery sql,  deferred.makeNodeResolver()
+  deferred.promise 
+
 # 
 # Logging Queries 
 # 
@@ -253,26 +262,22 @@ assembleListsForFrontend = (list_rows) ->
         pv
       , {}
 
-
-
-
-# app.use (req,res,next) ->
-# user_id = req.session?.user?.id
-#  req.user = req.session.user if user_id? and dbCheckUser user_id
-#  next()
+app.use (req,res,next) ->
+  user_id = req.session?.user?.id
+  req.user = req.session.user if user_id? and dbCheckUser user_id
+  next()
 
 authRequired = (req,res,next)  ->
   if req.session?.user?
     next()
   else
-    res.send(error: 'auth')
+    res.status(400).send(message: 'You must be logged in!')
 
 app.get '/test', (req,res) ->
   dbGetOpenRaid()
   .then (raid) ->
     raid_id = if raid.length > 0 then raid.pop().id else false
     res.send(raid:raid_id)
- 
 
 app.post '/login', (req,res) ->
   username = req.body.username
@@ -287,7 +292,12 @@ app.post '/login', (req,res) ->
         res.locals = user:cookie_user
       res.send(success: success)
 
-app.post '/loot', (req,res) ->
+app.post '/logout', (req,res) ->
+  req.session.destroy() if req.session?
+  res.send(success:true) 
+    
+
+app.post '/loot', authRequired, (req,res) ->
   list_id = req.body.list_id
   character_id = req.body.character_id
   item_id = req.body.item_id
@@ -313,7 +323,7 @@ app.post '/loot', (req,res) ->
           res.send lists: (assembleListsForFrontend rankings)
 
 
-app.post '/start', (req,res) ->
+app.post '/start', authRequired, (req,res) ->
   dbGetOpenRaid()
   .then (raid) ->
     if raid.length > 0
@@ -327,26 +337,27 @@ app.post '/start', (req,res) ->
         .then ->
           res.send(raid_id: results.insertId)
 
-app.post '/end', (req,res) ->
+app.post '/end', authRequired, (req,res) ->
   raid_id = req.body.raid_id
   dbEndRaid raid_id
   .then ->
+    dbArchiveList raid_id
     res.send success:true
 
-app.post '/boss', (req,res) ->
+app.post '/boss', authRequired, (req,res) ->
   boss_id = req.body.boss_id
   dbLogBoss()
   .then ->
     res.send success:true
 
-app.post '/add', (req,res) ->
+app.post '/add', authRequired, (req,res) ->
   raid_id = req.body.raid_id
   characters = req.body.characters
   dbAddRaiders(raid_id, characters)
   .then ->
     res.send success:true
 
-app.post '/rem', (req,res) ->
+app.post '/rem', authRequired, (req,res) ->
   raid_id = req.body.raid_id
   characters = req.body.characters
   dbRemRaiders(raid_id, characters)
@@ -372,9 +383,9 @@ app.get '/', (req, res) ->
         dbGetActives(raid_id)
         .then (raiders) ->
           active_raiders = raiders.map (v) -> id: v.character_id, active: true
-          res.render 'index.hbs', (characters:characters, lists: lists, logs: logs, raid_data: raid_data, raid_id: raid_id, active_raiders: active_raiders)
+          res.render 'index.hbs', (characters:characters, lists: lists, logs: logs, raid_data: raid_data, raid_id: raid_id, active_raiders: active_raiders, logged_in: req.user?)
       else
-        res.render 'index.hbs', (characters:characters, lists: lists, logs: logs, raid_data: raid_data, raid_id: raid_id, active_raiders: [])
+        res.render 'index.hbs', (characters:characters, lists: lists, logs: logs, raid_data: raid_data, raid_id: raid_id, active_raiders: [], logged_in: req.user?)
 
 ## catch 404 and forwarding to error handler
 app.use (req, res, next) ->
