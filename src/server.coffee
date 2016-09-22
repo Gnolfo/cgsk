@@ -96,12 +96,12 @@ dbGetLogs = () ->
 
 dbGetBosses = ->
   deferred = Q.defer()
-  dbQuery "SELECT * FROM bosses", deferred.makeNodeResolver()
+  dbQuery "SELECT * FROM bosses WHERE raid_data_id=12", deferred.makeNodeResolver()
   deferred.promise
 
 dbGetRaidData = ->
   deferred = Q.defer()
-  dbQuery "SELECT b.id, b.name, b.position, b.avatar_url, i.item_id, i.list_id FROM bosses b JOIN items i on i.boss_id=b.id", deferred.makeNodeResolver()
+  dbQuery "SELECT b.id, b.name, b.position, b.avatar_url, i.item_id, i.list_id FROM bosses b JOIN items i on i.boss_id=b.id where b.raid_data_id=12", deferred.makeNodeResolver()
   deferred.promise
 
 # 
@@ -124,7 +124,7 @@ dbCheckUser = (id) ->
 dbStartRaid = ->
   deferred = Q.defer()
   dbLogStart()
-  dbQuery "INSERT INTO raids (time_start) VALUES (UTC_TIMESTAMP())",  deferred.makeNodeResolver()
+  dbQuery "INSERT INTO raids (raid_data_id, time_start) VALUES (12,UTC_TIMESTAMP())",  deferred.makeNodeResolver()
   deferred.promise  
 
 dbGetActives = (raid_id) ->
